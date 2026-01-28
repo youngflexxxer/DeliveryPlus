@@ -1,6 +1,6 @@
 // Data storage
 let allOrders = [];
-let processedOrders = new Set();
+let orderProcessingTimes = new Map(); // Track when orders were first processed
 let takenOrders = new Set();
 let orderHistory = new Map(); // Store all orders we've seen
 let takenByOthers = new Set(); // Orders taken by other couriers
@@ -19,17 +19,29 @@ function loadTakenOrders() {
   }
 }
 
-// Load processed orders from localStorage
-function loadProcessedOrders() {
-  const stored = localStorage.getItem("processedOrders");
+// Load order processing times from localStorage
+function loadOrderProcessingTimes() {
+  const stored = localStorage.getItem("orderProcessingTimes");
   if (stored) {
-    processedOrders = new Set(JSON.parse(stored));
+    const parsed = JSON.parse(stored);
+    orderProcessingTimes = new Map(parsed);
+
+    // Clean up old timestamps (older than 24 hours)
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    for (const [orderId, timestamp] of orderProcessingTimes) {
+      if (timestamp < oneDayAgo) {
+        orderProcessingTimes.delete(orderId);
+      }
+    }
   }
 }
 
-// Save processed orders to localStorage
-function saveProcessedOrders() {
-  localStorage.setItem("processedOrders", JSON.stringify([...processedOrders]));
+// Save order processing times to localStorage
+function saveOrderProcessingTimes() {
+  localStorage.setItem(
+    "orderProcessingTimes",
+    JSON.stringify([...orderProcessingTimes]),
+  );
 }
 
 // Load order history from localStorage
@@ -62,12 +74,12 @@ function saveTakenByOthers() {
 // Clear order data
 function clearOrderData() {
   allOrders = [];
-  processedOrders.clear();
+  orderProcessingTimes.clear();
   orderHistory.clear();
   takenByOthers.clear();
 
   // Save cleared state
-  saveProcessedOrders();
+  saveOrderProcessingTimes();
   saveOrderHistory();
   saveTakenByOthers();
 
@@ -447,6 +459,16 @@ function getFilteredOrders() {
 
   // Sort filtered orders
   return filtered.sort((a, b) => {
+    // First priority: Always move taken orders to bottom
+    const aIsTaken =
+      takenOrders.has(a.order_id) || takenByOthers.has(a.order_id);
+    const bIsTaken =
+      takenOrders.has(b.order_id) || takenByOthers.has(b.order_id);
+
+    if (aIsTaken && !bIsTaken) return 1; // a is taken, move it down
+    if (!aIsTaken && bIsTaken) return -1; // b is taken, move it down
+
+    // If both have same taken status, apply main sorting
     switch (sortBy) {
       case "price-desc":
         return (
@@ -464,21 +486,10 @@ function getFilteredOrders() {
       case "price-per-km-desc":
         return (b._cachedPricePerKm || 0) - (a._cachedPricePerKm || 0);
       default: // newest
-        // Prioritize unprocessed orders first, but don't move taken orders to bottom
-        const aIsNew = !processedOrders.has(a.order_id);
-        const bIsNew = !processedOrders.has(b.order_id);
-        const aIsTaken =
-          takenOrders.has(a.order_id) || takenByOthers.has(a.order_id);
-        const bIsTaken =
-          takenOrders.has(b.order_id) || takenByOthers.has(b.order_id);
-
-        // If both are taken or both are not taken, prioritize new ones
-        if ((aIsTaken && bIsTaken) || (!aIsTaken && !bIsTaken)) {
-          if (aIsNew && !bIsNew) return -1; // a is new, put it first
-          if (!aIsNew && bIsNew) return 1; // b is new, put it first
-        }
-
-        return 0; // keep original order
+        // Sort by processing time (newest first)
+        const aTime = orderProcessingTimes.get(a.order_id) || 0;
+        const bTime = orderProcessingTimes.get(b.order_id) || 0;
+        return bTime - aTime; // newer timestamps first
     }
   });
 }
@@ -561,27 +572,27 @@ function renderOrders() {
               }
 
               return `
-							<div class="point">
-								<span class="point-number">${idx + 1}.</span>
-								<span class="point-address">${point.address} (${distance} км)</span>
-								<div class="point-meta">
-									<span>${stationName}</span>
-									<span>${startTime} - ${finishTime}</span>
-								</div>
-							</div>
-						`;
+              							<div class="point">
+              								<span class="point-number">${idx + 1}.</span>
+              								<span class="point-address">${point.address} (${distance} км)</span>
+              								<div class="point-meta">
+              									<span>${stationName}</span>
+              									<span>${startTime} - ${finishTime}</span>
+              								</div>
+              							</div>
+              						`;
             })
             .join("")}
-				</div>
+              				</div>
 
-				<div class="order-actions">
-					<button class="btn-primary" ${isTakenByOthers ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ""} onclick="toggleTaken(${order.order_id})">
-						${isTaken ? "✓ Mark as Available" : isTakenByOthers ? "Недоступен" : "Взять заказ"}
-					</button>
-					<button class="btn-secondary" onclick="copyOrderDetails(${order.order_id})">Скопировать информацию</button>
-				</div>
-			</div>
-		`;
+              				<div class="order-actions">
+              					<button class="btn-primary" ${isTakenByOthers ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ""} onclick="toggleTaken(${order.order_id})">
+              						${isTaken ? "✓ Mark as Available" : isTakenByOthers ? "Недоступен" : "Взять заказ"}
+              					</button>
+              					<button class="btn-secondary" onclick="copyOrderDetails(${order.order_id})">Скопировать информацию</button>
+              				</div>
+              			</div>
+              		`;
     })
     .join("");
 }
@@ -764,10 +775,12 @@ async function loadFromApi() {
       let hasNewOrders = false;
       const newOrderIds = [];
 
+      const currentTime = Date.now();
       newOrders.forEach((order) => {
-        if (!processedOrders.has(order.order_id)) {
+        if (!orderProcessingTimes.has(order.order_id)) {
           hasNewOrders = true;
           newOrderIds.push(order.order_id);
+          orderProcessingTimes.set(order.order_id, currentTime);
         }
       });
 
@@ -790,12 +803,7 @@ async function loadFromApi() {
       // Save data
       saveOrderHistory();
       saveTakenByOthers();
-
-      // Mark new orders as processed AFTER rendering
-      if (newOrderIds.length > 0) {
-        newOrderIds.forEach((orderId) => processedOrders.add(orderId));
-        saveProcessedOrders();
-      }
+      saveOrderProcessingTimes();
     }
   } catch (error) {
     console.error("Auto-refresh error:", error.message);
@@ -829,7 +837,7 @@ async function takeOrderViaApi(orderId) {
 // Initialize
 function initializePage() {
   loadTakenOrders();
-  loadProcessedOrders();
+  loadOrderProcessingTimes();
   loadOrderHistory();
   loadTakenByOthers();
   loadSettings();

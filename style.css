@@ -8,15 +8,12 @@
     --border-color: #e0e0e0;
     --border-focus: #667eea;
     --button-bg: #667eea;
-    --button-hover: #5568d3;
     --secondary-bg: #f0f0f0;
-    --secondary-hover: #e0e0e0;
     --success-color: #4caf50;
     --error-color: #f44336;
     --warning-color: #ff9800;
     --info-bg: #f9f9f9;
     --shadow: rgba(0, 0, 0, 0.1);
-    --shadow-hover: rgba(0, 0, 0, 0.15);
     --empty-state-color: #ffffff;
 }
 
@@ -31,15 +28,12 @@
         --border-color: #4a5568;
         --border-focus: #667eea;
         --button-bg: #667eea;
-        --button-hover: #5568d3;
         --secondary-bg: #4a5568;
-        --secondary-hover: #718096;
         --success-color: #48bb78;
         --error-color: #f56565;
         --warning-color: #ed8936;
         --info-bg: #1a202c;
         --shadow: rgba(0, 0, 0, 0.3);
-        --shadow-hover: rgba(0, 0, 0, 0.4);
         --empty-state-color: #f7fafc;
     }
 }
@@ -57,7 +51,6 @@ body {
     background: var(--bg-gradient);
     min-height: 100vh;
     padding: 20px;
-    transition: background 0.3s ease;
 }
 
 .container {
@@ -160,28 +153,14 @@ button {
     color: white;
 }
 
-.btn-primary:hover {
-    background: var(--button-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
 .btn-secondary {
     background: var(--secondary-bg);
     color: var(--text-color);
 }
 
-.btn-secondary:hover {
-    background: var(--secondary-hover);
-}
-
 .btn-danger {
     background: var(--error-color);
     color: white;
-}
-
-.btn-danger:hover {
-    background: #da190b;
 }
 
 .orders {
@@ -194,13 +173,7 @@ button {
     border-radius: 12px;
     box-shadow: 0 5px 20px var(--shadow);
     overflow: hidden;
-    transition: all 0.3s;
     border-left: 4px solid var(--success-color);
-}
-
-.order:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px var(--shadow-hover);
 }
 
 .order.taken {
@@ -406,9 +379,6 @@ button {
     border: none;
 }
 
-.close:hover {
-    color: var(--text-color);
-}
 
 textarea {
     width: 100%;
@@ -421,11 +391,6 @@ textarea {
     resize: vertical;
     background: var(--card-bg);
     color: var(--text-color);
-    transition:
-        border-color 0.3s,
-        background 0.3s ease,
-        color 0.3s ease;
-}
     transition:
         border-color 0.3s,
         background 0.3s ease,
@@ -550,15 +515,6 @@ textarea:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition:
-        border-color 0.3s,
-        background 0.3s ease,
-        color 0.3s ease;
-        color 0.3s ease;
-}
-
-.dropdown-button:hover {
-    border-color: var(--border-focus);
 }
 
 .dropdown-button.active {
@@ -608,10 +564,6 @@ textarea:focus {
     border-bottom: none;
 }
 
-.checkbox-item:hover {
-    background: var(--info-bg);
-}
-
 .checkbox-item input[type="checkbox"] {
     margin-right: 10px;
     cursor: pointer;
@@ -650,10 +602,6 @@ textarea:focus {
 
 .sort-item:last-child {
     border-bottom: none;
-}
-
-.sort-item:hover {
-    background: var(--info-bg);
 }
 
 .sort-item.active {
